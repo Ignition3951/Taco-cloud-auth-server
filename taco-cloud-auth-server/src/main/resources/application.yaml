@@ -2,4 +2,5 @@ spring:
   application:
     name: taco-cloud-auth-server
 server:
-  port: 9000
+  port: 9001
+debug: true
