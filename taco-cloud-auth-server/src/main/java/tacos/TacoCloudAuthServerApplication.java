@@ -19,8 +19,8 @@ public class TacoCloudAuthServerApplication {
 	@Bean
 	public ApplicationRunner dataLoader(UserRepository repo, PasswordEncoder encoder) {
 		return args -> {
-			repo.save(new User("habuma", encoder.encode("password"), "ROLE_ADMIN", null, null, null, null, null));
-			repo.save(new User("tacochef", encoder.encode("password"), "ROLE_ADMIN", null, null, null, null, null));
+			repo.save(new User("habuma", encoder.encode("password"), "ROLE_USER", null, null, null, null, null));
+			repo.save(new User("tacochef", encoder.encode("password"), "ROLE_USER", null, null, null, null, null));
 		};
 	}
 }

@@ -13,6 +13,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -22,8 +23,11 @@ import org.springframework.security.oauth2.server.authorization.client.InMemoryR
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
+import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
+import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -34,11 +38,23 @@ import com.nimbusds.jose.proc.SecurityContext;
 public class AuthorizationServerConfig {
 
 	@Bean
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+
+	@Bean
 	@Order(Ordered.HIGHEST_PRECEDENCE)
-	public SecurityFilterChain authorizationSecurityFilterChain(HttpSecurity httpSecurity) throws Exception {
+	public SecurityFilterChain authorizationSecurityFilterChain(HttpSecurity httpSecurity,
+			RegisteredClientRepository registeredClientRepository,
+			AuthorizationServerSettings authorizationServerSettings) throws Exception {
 		org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration
 				.applyDefaultSecurity(httpSecurity);
+		httpSecurity
+				.exceptionHandling((exceptions) -> exceptions
+						.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login")))
+				.oauth2ResourceServer(oauth2ResourceServer -> oauth2ResourceServer.jwt(Customizer.withDefaults()));
 
+		httpSecurity.getConfigurer(OAuth2AuthorizationServerConfigurer.class).oidc(Customizer.withDefaults());
 		return httpSecurity.formLogin(Customizer.withDefaults()).build();
 	}
 
@@ -50,8 +66,9 @@ public class AuthorizationServerConfig {
 				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
 				.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
 				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-				.redirectUri("http://localhost:9090/login/oauth2/code/taco-admin-client").scope("writeIngredients")
-				.scope("deleteIngredients").scope(OidcScopes.OPENID)
+				.redirectUri("http://localhost:8080/login/oauth2/code/taco-admin-client")
+				.scope("writeIngredients").scope("deleteIngredients")
+				.scope(OidcScopes.OPENID)
 				.clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
 				.build();
 		// .clientSettings(null).requireUserConsent(true).build();
@@ -82,4 +99,10 @@ public class AuthorizationServerConfig {
 	public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
 		return OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
 	}
+
+	@Bean
+	public AuthorizationServerSettings providerSettings() {
+		return AuthorizationServerSettings.builder().issuer("http://authserver:9001").build();
+	}
+
 }
